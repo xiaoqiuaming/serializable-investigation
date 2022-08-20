@@ -1,4 +1,5 @@
 # serializable-investigation
+## 基础锁设施
 每次在读操作的时候创建siread lock，并且调用CheckForSerializableConflictOut，检查siread lock建立rw冲突关系。UDI操作的时候需要调用CheckForSerializableConflictOut（什么也不做）和CheckForSerializableConflictIn检查siread lock建立rw冲突关系。在提交的时候调用PreCommit_CheckForSerializationFailure，如果发现危险结构则终止，遵循First committer win。
 
 两阶段提交相关：AtPrepare_PredicateLocks、PostPrepare_PredicateLocks、PredicateLockTwoPhaseFinish、predicatelock_twophase_recover。
@@ -20,6 +21,7 @@ SIREAD lock的设置，分为三种粒度，分别是tuple、page、relation。
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%875.png)
 
 每次查询数据的时候就会检查：1、是不是已经存在siread lock；2、是不是被更高粒度的锁cover。如果是这两种情况就不需要额外加siread lock。
+
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%876.png)
 
 创建SIREAD LOCK，先得到锁target（没有则创建），再创建siread lock连接到target的SIREAD lock队列和事务的predicateLocks队列。
@@ -28,17 +30,16 @@ SIREAD lock的设置，分为三种粒度，分别是tuple、page、relation。
 合并细粒度锁到粗粒度。建完siread lock之后增加父级对象的孩子锁数量，如果大于某个阈值，就升级为父级对象siread lock，释放所有孩子锁。
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%878.png)
 
-清理SIREAD LOCK
-在事务每次提交的时候，尝试清理过期的siread lock。清理的条件是事务发现自己的xmin（pg中的snapshot）是活跃事务中的最小xmin，并且是最后一个，那么就更新global xmin。
+## 清理SIREAD LOCK
+  在事务每次提交的时候，尝试清理过期的siread lock。清理的条件是事务发现自己的xmin（pg中的snapshot）是活跃事务中的最小xmin，并且是最后一个，那么就更新global xmin。
 
+  清理过期的siread lock。遍历所有FinishedSerializableTransactions列表里的事务，对所有xmax小于global xmin的事务，释放siread lock（从PredicateLockHash中删除这个锁，从PredicateLockTargetHash对应的lock队列中删除这个锁）同时清除所有inConflicts（左端rw冲突）。如果是只读事务，那么同时清除右端的rw冲突。
 
-清理过期的siread lock。遍历所有FinishedSerializableTransactions列表里的事务，对所有xmax小于global xmin的事务，释放siread lock（从PredicateLockHash中删除这个锁，从PredicateLockTargetHash对应的lock队列中删除这个锁）同时清除所有inConflicts（左端rw冲突）。如果是只读事务，那么同时清除右端的rw冲突。
-
-冲突检测。读的时候根据查询范围创建对应粒度的锁。读、写、提交时标记rw冲突，并终止危险结构中的事务。
+## 冲突检测。
+读的时候根据查询范围创建对应粒度的锁。读、写、提交时标记rw冲突，并终止危险结构中的事务。
 
 writer写的时候，需要检查三种粒度的rw冲突。检测的时候得到锁对象的所有siread lock，通过siread lock得到对应的reader事务，对每个reader检测危险结构。在reader和writer之间建立rw冲突
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%879.png)
-
 
 当读取一行数据的旧版本的时候，那么建立rw冲突。读写的时候只检测、设置冲突
 
@@ -47,6 +48,7 @@ writer写的时候，需要检查三种粒度的rw冲突。检测的时候得到
 
 几种情况：
 1、W是pivot事务并且W、T2已经提交，T2比W提交早，终止事务
+
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%8711.png)
 
 2、W是pivot事务，T2比R、W提交早终止本事务。如果reader已经提交、writer已经提交、reader是read only并且在T2提交之前获取的snapshot，就不用终止事务。
