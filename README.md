@@ -4,7 +4,7 @@
 两阶段提交相关：AtPrepare_PredicateLocks、PostPrepare_PredicateLocks、PredicateLockTwoPhaseFinish、predicatelock_twophase_recover。
 
 Pg是多进程模型，SIREAD lock存储在mmap共享存储区，每个backend都可以访问
-!(https://github.com/xiaoqiuaming/serializable-investigation/blob/main/image.png)
+![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/image.png)
 
 
 PredicateLockTargetHash存储lock table 里的所有PREDICATELOCKTARGET，PREDICATELOCKTARGET是锁对象描述符+SIREAD lock列表。PredicateLockHash存储了所有的SIREAD lock。锁对象描述符是4个32比特的id值，分别表示db id、relation id、block id、offset。举个例子，如果锁粒度是block，page，那么锁对象描述符的offset就设置为InvalidOffsetNumber。FinishedSerializableTransactions组织所有完成提交的但是还未清理siread lock的事务。一个SIREAD LOCK用一个PREDICATELOCKTARGET+所属的事务指针标识，连接到PREDICATELOCKTARGET的SIREAD lock队列和事务的predicateLocks队列。
