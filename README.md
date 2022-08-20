@@ -52,6 +52,7 @@ writer写的时候，需要检查三种粒度的rw冲突。检测的时候得到
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%8711.png)
 
 2、W是pivot事务，T2比R、W提交早终止本事务。如果reader已经提交、writer已经提交、reader是read only并且在T2提交之前获取的snapshot，就不用终止事务。
+
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%8712.png)
 
 3、R是pivot事务，并且writer已经prepare，T0的提交时间戳比writer prepare version大，那么需要终止。
