@@ -20,7 +20,7 @@ PredicateLockTargetHash存储lock table 里的所有PREDICATELOCKTARGET，PREDIC
 SIREAD lock的设置，分为三种粒度，分别是tuple、page、relation。
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%875.png)
 
-每次查询数据的时候就会检查：1、是不是已经存在siread lock；2、是不是被更高粒度的锁cover。如果是这两种情况就不需要额外加siread lock。
+每次更新数据的时候就会检查：1、是不是已经存在siread lock；2、是不是被更高粒度的锁cover。如果是这两种情况就不需要额外加siread lock。
 
 创建SIREAD LOCK，先得到锁target（没有则创建），再创建siread lock连接到target的SIREAD lock队列和事务的predicateLocks队列。
 ![text](https://github.com/xiaoqiuaming/serializable-investigation/blob/main/%E5%9B%BE%E7%89%876.png)
