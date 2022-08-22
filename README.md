@@ -1,5 +1,7 @@
 # serializable-investigation
 ## 基础锁设施
+SIREAD lock有三种粒度：tuple、page、relation。如果SIREAD lock锁住了一个页的多个元组，那么就会聚合成一个页的锁，并且释放元组的锁。同理，页级锁也可以升级成表锁。在开始对元组加siread lock的时候，对页也加上siread lock，开始对表做顺序扫描的时候也需要对表加上siread lock而不关心索引条件，这个会造成一些false-positive。
+
 每次在读操作的时候创建siread lock，并且调用CheckForSerializableConflictOut，建立rw冲突关系。UDI操作的时候需要调用CheckForSerializableConflictIn检查siread lock建立rw冲突关系。在提交的时候调用PreCommit_CheckForSerializationFailure，如果发现危险结构则终止，遵循First committer win。
 
 两阶段提交相关：AtPrepare_PredicateLocks、PostPrepare_PredicateLocks、PredicateLockTwoPhaseFinish、predicatelock_twophase_recover。
